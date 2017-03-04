@@ -50,7 +50,7 @@ Then build by enabling the feature: `cargo build --features "clippy"`
 
 Instead of adding the `cfg_attr` attributes you can also run clippy on demand:
 `cargo rustc --features clippy -- -Z no-trans -Z extra-plugins=clippy`
-(the `-Z no trans`, while not neccessary, will stop the compilation process after
+(the `-Z no trans`, while not necessary, will stop the compilation process after
 typechecking (and lints) have completed, which can significantly reduce the runtime).
 
 ### As a cargo subcommand (`cargo clippy`)
