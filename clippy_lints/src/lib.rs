@@ -133,6 +133,7 @@ pub mod temporary_assignment;
 pub mod transmute;
 pub mod types;
 pub mod unicode;
+pub mod unix_file_mode;
 pub mod unsafe_removed_from_name;
 pub mod unused_io_amount;
 pub mod unused_label;
@@ -300,6 +301,7 @@ pub fn register_plugins(reg: &mut rustc_plugin::Registry) {
     reg.register_late_lint_pass(box large_enum_variant::LargeEnumVariant::new(conf.enum_variant_size_threshold));
     reg.register_late_lint_pass(box should_assert_eq::ShouldAssertEq);
     reg.register_late_lint_pass(box needless_pass_by_value::NeedlessPassByValue);
+    reg.register_late_lint_pass(box unix_file_mode::UnixFileMode);
 
     reg.register_lint_group("clippy_restrictions", vec![
         arithmetic::FLOAT_ARITHMETIC,
@@ -505,6 +507,10 @@ pub fn register_plugins(reg: &mut rustc_plugin::Registry) {
         types::UNIT_CMP,
         types::UNNECESSARY_CAST,
         unicode::ZERO_WIDTH_SPACE,
+        unix_file_mode::INVALID_FILE_MODE,
+        unix_file_mode::NON_OCTAL_FILE_MODE,
+        unix_file_mode::WORLD_READABLE_FILE_MODE,
+        unix_file_mode::WORLD_WRITEABLE_FILE_MODE,
         unsafe_removed_from_name::UNSAFE_REMOVED_FROM_NAME,
         unused_io_amount::UNUSED_IO_AMOUNT,
         unused_label::UNUSED_LABEL,
