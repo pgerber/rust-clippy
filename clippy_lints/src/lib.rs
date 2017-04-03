@@ -509,6 +509,7 @@ pub fn register_plugins(reg: &mut rustc_plugin::Registry) {
         unicode::ZERO_WIDTH_SPACE,
         unix_file_mode::INVALID_FILE_MODE,
         unix_file_mode::NON_OCTAL_FILE_MODE,
+        unix_file_mode::SETUID_FILE_MODE,
         unix_file_mode::WORLD_READABLE_FILE_MODE,
         unix_file_mode::WORLD_WRITEABLE_FILE_MODE,
         unsafe_removed_from_name::UNSAFE_REMOVED_FROM_NAME,

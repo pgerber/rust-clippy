@@ -27,6 +27,12 @@ declare_lint! {
 }
 
 declare_lint! {
+    pub SETUID_FILE_MODE,
+    Warn,
+    "setuid or setgid bit is set, this can lead to security issues"
+}
+
+declare_lint! {
     pub WORLD_WRITEABLE_FILE_MODE,
     Warn,
     "file mode allows writing for anyone"
@@ -38,12 +44,18 @@ declare_lint! {
     "file mode allows writing for anyone"
 }
 
+enum FileType {
+    File(u32, Span),
+    Dir(u32, Span),
+    None
+}
+
 #[derive(Copy, Clone)]
 pub struct UnixFileMode;
 
 impl LintPass for UnixFileMode {
     fn get_lints(&self) -> LintArray {
-        lint_array!(INVALID_FILE_MODE, NON_OCTAL_FILE_MODE, WORLD_READABLE_FILE_MODE, WORLD_WRITEABLE_FILE_MODE)
+        lint_array!(INVALID_FILE_MODE, NON_OCTAL_FILE_MODE, SETUID_FILE_MODE, WORLD_READABLE_FILE_MODE, WORLD_WRITEABLE_FILE_MODE)
     }
 }
 
@@ -51,42 +63,86 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for UnixFileMode {
     fn check_expr(&mut self, cx: &LateContext<'a, 'tcx>, expr: &'tcx ::rustc::hir::Expr) {
         if_let_chain! {[
             let hir::ExprMethodCall(name, ref x, ref args) = expr.node,
-            &*name.node.as_str() == "mode",
-            args.len() == 2,
+            &*name.node.as_str() == "mode"
         ], {
-            if match_trait_method(cx, expr, &["std", "sys", "imp", "ext", "fs", "DirBuilderExt"])
-                    || match_trait_method(cx, expr, &["std", "sys", "imp", "ext", "fs", "OpenOptionsExt"]) {
-                check_file_mode(cx, &args[1]);
+            match file_type(cx, expr, &args) {
+                FileType::File(mode, span) => {
+                    check_mode_validity(&cx, span, mode);
+                    check_world_writeable_mode(&cx, span, mode);
+                    check_world_readable_mode(&cx, span, mode);
+                    check_setuid(&cx, span, mode);
+                },
+                FileType::Dir(mode, span) => {
+                    check_mode_validity(&cx, span, mode);
+                    check_world_writeable_mode(&cx, span, mode);
+                    check_world_readable_mode(&cx, span, mode);
+               },
+               FileType::None => ()
             }
         }}
     }
 }
 
-fn check_file_mode(cx: &LateContext, expr: &::rustc::hir::Expr) {
+fn file_type(cx: &LateContext, expr: &::rustc::hir::Expr, args: &[::rustc::hir::Expr]) -> FileType {
+    if match_trait_method(cx, expr, &["std", "sys", "imp", "ext", "fs", "OpenOptionsExt"]) {
+        if let Some((mode, span)) = extract_mode(&args, 1) {
+            return FileType::File(mode, span);
+        }
+    } else if match_trait_method(cx, expr, &["std", "sys", "imp", "ext", "fs", "DirBuilderExt"]) {
+        if let Some((mode, span)) = extract_mode(&args, 1) {
+            return FileType::Dir(mode, span);
+        }
+    }
+    FileType::None
+}
+
+fn extract_mode(args: &[::rustc::hir::Expr], arg_no: usize) -> Option<(u32, Span)> {
     if_let_chain! {[
-        let ExprLit(ref lit) = expr.node
-        let LitKind::Int(value, ..) = lit
-    ] , {
-        if value > 0o7777 => {
-            span_help_and_lint(cx,
-                               INVALID_FILE_MODE,
-                               expr.span,
-                               "file mode invalid",
-                               "consider using …");
-        }
-        if value & 0o002 != 0 => {
-            span_help_and_lint(cx,
-                               WORLD_WRITEABLE_FILE_MODE,
-                               expr.span,
-                               "world-writeable unix permissinos",
-                               "consider using …");
-        }
-        if value & 0o004 != 0 => {
-            span_help_and_lint(cx,
-                               WORLD_READABLE_FILE_MODE,
-                               expr.span,
-                               "world-readable unix permissinos",
-                               "consider using …");
-        }
+        let Some(arg) = args.get(arg_no),
+        let ExprLit(ref lit) = arg.node,
+        let LitKind::Int(mode, ..) = lit.node
+    ], {
+        return Some((mode as u32, arg.span));
     }}
+    None
+}
+
+fn check_mode_validity(cx: &LateContext, span: Span, mode: u32) {
+    if mode > 0o7777 {
+        span_help_and_lint(cx,
+                           INVALID_FILE_MODE,
+                           span,
+                           "file mode invalid",
+                           "consider using …");
+    }
+}
+
+fn check_world_writeable_mode(cx: &LateContext, span: Span, mode: u32) {
+    if mode & 0o002 != 0 {
+        span_help_and_lint(cx,
+                           WORLD_WRITEABLE_FILE_MODE,
+                           span,
+                           "world-writeable unix permissions",
+                           "consider using …");
+    }
+}
+
+fn check_world_readable_mode(cx: &LateContext, span: Span, mode: u32) {
+    if mode & 0o004 != 0 {
+        span_help_and_lint(cx,
+                           WORLD_READABLE_FILE_MODE,
+                           span,
+                           "world-readable unix permissions",
+                           "consider using …");
+    }
+}
+
+fn check_setuid(cx: &LateContext, span: Span, mode: u32) {
+    if mode & 0o6000 != 0 {
+        span_help_and_lint(cx,
+                           SETUID_FILE_MODE,
+                           span,
+                           "setuid or setgid set",
+                           "consider using …");
+    }
 }
