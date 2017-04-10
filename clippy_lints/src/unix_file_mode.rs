@@ -33,7 +33,7 @@ declare_lint! {
 }
 
 declare_lint! {
-    pub WORLD_WRITEABLE_FILE_MODE,
+    pub WORLD_WRITABLE_FILE_MODE,
     Warn,
     "file mode allows writing for anyone"
 }
@@ -55,7 +55,7 @@ pub struct UnixFileMode;
 
 impl LintPass for UnixFileMode {
     fn get_lints(&self) -> LintArray {
-        lint_array!(INVALID_FILE_MODE, NON_OCTAL_FILE_MODE, SETUID_FILE_MODE, WORLD_READABLE_FILE_MODE, WORLD_WRITEABLE_FILE_MODE)
+        lint_array!(INVALID_FILE_MODE, NON_OCTAL_FILE_MODE, SETUID_FILE_MODE, WORLD_READABLE_FILE_MODE, WORLD_WRITABLE_FILE_MODE)
     }
 }
 
@@ -68,13 +68,13 @@ impl<'a, 'tcx> LateLintPass<'a, 'tcx> for UnixFileMode {
             match file_type(cx, expr, &args) {
                 FileType::File(mode, span) => {
                     check_mode_validity(&cx, span, mode);
-                    check_world_writeable_mode(&cx, span, mode);
+                    check_world_writable_mode(&cx, span, mode);
                     check_world_readable_mode(&cx, span, mode);
                     check_setuid(&cx, span, mode);
                 },
                 FileType::Dir(mode, span) => {
                     check_mode_validity(&cx, span, mode);
-                    check_world_writeable_mode(&cx, span, mode);
+                    check_world_writable_mode(&cx, span, mode);
                     check_world_readable_mode(&cx, span, mode);
                },
                FileType::None => ()
@@ -97,6 +97,58 @@ fn file_type(cx: &LateContext, expr: &::rustc::hir::Expr, args: &[::rustc::hir::
 }
 
 fn extract_mode(args: &[::rustc::hir::Expr], arg_no: usize) -> Option<(u32, Span)> {
+    use rustc::hir::*;
+
+    println!("=============================");
+    println!("arg: {:?}", args[arg_no]);
+
+    if let Some(arg) = args.get(arg_no) {
+        match arg.node {
+            ExprLit(..) => println!("ExprLit"),
+            ExprBox(..) => println!("ExprBox"),
+            ExprArray(..) => println!("ExprArray"),
+            ExprCall(..) => println!("ExprCall"),
+            ExprMethodCall(..) => println!("ExprMethodCall"),
+            ExprTup(..) => println!("ExprTup"),
+            ExprBinary(..) => println!("ExprBinary"),
+            ExprUnary(..) => println!("ExprUnary"),
+            ExprCast(..) => println!("ExprCast"),
+            ExprType(..) => println!("ExprType"),
+            ExprIf(..) => println!("ExprIf"),
+            ExprWhile(..) => println!("ExprWhile"),
+            ExprLoop(..) => println!("ExprLoop"),
+            ExprMatch(..) => println!("ExprMatch"),
+            ExprClosure(..) => println!("ExprClosure"),
+            ExprBlock(..) => println!("ExprBlock"),
+            ExprAssign(..) => println!("ExprAssign"),
+            ExprAssignOp(..) => println!("ExprAssignOp"),
+            ExprField(..) => println!("ExprField"),
+            ExprTupField(..) => println!("ExprTupField"),
+            ExprIndex(..) => println!("ExprIndex"),
+            ExprPath(ref path) => {
+                println!("ExprPath");
+                match *path {
+                    QPath::Resolved(ref ty, ref path) => {
+                        // https://manishearth.github.io/rust-internals-docs
+                        path.x();
+                        println!("Resolved: {:?} - {:?}", ty, path);
+                    },
+                    QPath::TypeRelative(ref a, ref b) => {
+                        println!("TypeRelative: {:?} - {:?}", a, b);
+                    }
+                }
+            },
+            ExprAddrOf(..) => println!("ExprAddrOf"),
+            ExprBreak(..) => println!("ExprBreak"),
+            ExprAgain(..) => println!("ExprAgain"),
+            ExprRet(..) => println!("ExprRet"),
+            ExprInlineAsm(..) => println!("ExprInlineAsm"),
+            ExprStruct(..) => println!("ExprStruct"),
+            ExprRepeat(..) => println!("ExprRepeat"),
+        }
+    }
+
+
     if_let_chain! {[
         let Some(arg) = args.get(arg_no),
         let ExprLit(ref lit) = arg.node,
@@ -117,12 +169,12 @@ fn check_mode_validity(cx: &LateContext, span: Span, mode: u32) {
     }
 }
 
-fn check_world_writeable_mode(cx: &LateContext, span: Span, mode: u32) {
+fn check_world_writable_mode(cx: &LateContext, span: Span, mode: u32) {
     if mode & 0o002 != 0 {
         span_help_and_lint(cx,
-                           WORLD_WRITEABLE_FILE_MODE,
+                           WORLD_WRITABLE_FILE_MODE,
                            span,
-                           "world-writeable unix permissions",
+                           "world-writable unix permissions",
                            "consider using …");
     }
 }

@@ -511,7 +511,7 @@ pub fn register_plugins(reg: &mut rustc_plugin::Registry) {
         unix_file_mode::NON_OCTAL_FILE_MODE,
         unix_file_mode::SETUID_FILE_MODE,
         unix_file_mode::WORLD_READABLE_FILE_MODE,
-        unix_file_mode::WORLD_WRITEABLE_FILE_MODE,
+        unix_file_mode::WORLD_WRITABLE_FILE_MODE,
         unsafe_removed_from_name::UNSAFE_REMOVED_FROM_NAME,
         unused_io_amount::UNUSED_IO_AMOUNT,
         unused_label::UNUSED_LABEL,
